@@ -182,4 +182,4 @@ Scores, thresholds, radii and boundaries still require rider/video review.
 
 Read [Reading a wingfoil session as a sequence of maneuvers](docs/reading-a-wingfoil-session.md) and the [milestone plan](docs/roadmap.md).
 
-The FIT/ZIP integration test uses a local activity file and is skipped when that file is absent. Raw recordings, prototype archives, and generated track reports are not published.
+The FIT/ZIP integration test uses a local activity file and is skipped when that file is absent. Raw recordings and prototype archives remain local. The September 7 Event Site report and selected figures are published with owner permission under `docs/examples/` and `docs/figures/`. GitHub Pages serves `docs/`; the main project site reads the article from this repository.

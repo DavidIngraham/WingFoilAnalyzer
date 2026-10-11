@@ -6,6 +6,18 @@ A GPS track shows where a wingfoil session went. The questions I want to ask aft
 
 Wingfoil Analyzer is an experiment in recovering that structure from a FIT activity recording. It currently combines a rule-based maneuver detector with an experimental hidden semi-Markov model, or HSMM. The rules produce the session report; the HSMM proposes a second interpretation of the activity states. The useful question now is whether that second interpretation improves on the first when a rider reviews the evidence.
 
+## One real session, from track to maneuvers
+
+This is the actual saved output from my September 7 session at the Event Site in Hood River. The colors show the heuristic activity labels; red dots mark probable crashes and green dots mark onto-foil candidates. The numbers identify segments in the report.
+
+![Actual full-session track map with colored activity segments and crash and foil-onset markers](figures/session-map.png)
+
+*The original analyzer map, with distances relative to the first valid GPS position. Labels are provisional; the plot does not establish whether every stop was a fall or every pink section was wave-powered surfing.*
+
+[Explore the full clickable activity report →](https://davidingraham.github.io/WingFoilAnalyzer/examples/event-site-2026-09-07.html)
+
+The report is the saved development output, including its track and event table. Click a track segment or table row to highlight it. Its “gybe success rate” label is the detector's speed-retaining-exit fraction, not validated recognition accuracy.
+
 ## Start with the information the recording actually contains
 
 The prototype reads a FIT file, directly or inside a ZIP, retains recorded speed, and reconstructs course from trailing local fits to GPS position. A supplied wind direction gives the course a sailing context. In the development recording, wind from WSW is represented as 247.5 degrees true.
@@ -23,6 +35,18 @@ Completion and outcome are separate. Crossing to the opposite travel side is a g
 That initial stable-approach assumption misses some turns embedded in carving. A supplemental detector therefore looks for persistent travel-side changes even without a steady reach beforehand. Surf candidates are then split around protected maneuvers so the report can represent a sequence such as surf, gybe, surf.
 
 The output is a contiguous session timeline, a clickable track report, and separate tables for maneuvers, probable crashes, and onto-foil candidates. Discrete crash events do not add duration to the timeline.
+
+## Two turns, two different outcomes
+
+A close-up makes the distinction between turning and retaining speed easier to see. Both examples below come from the recording and its saved phase boundaries. The left panel shows the ground track; the right shows recorded speed, with matching phase shading. These are new plots of the saved analysis and original samples, rather than screenshots of the report.
+
+![Ground track and speed for the gybe at 8 minutes 32 seconds, classified as a speed-retaining exit](figures/gybe-retained-speed.png)
+
+*At 8:32–8:52, the detector identifies a turn with speed retained through its exit window. Speed dips through the core and recovers to around 7 m/s. The later slowdown lies outside that window: the label describes the maneuver's observed exit, not the entire following ride.*
+
+![Ground track and speed for the gybe at 6 minutes 31 seconds, classified as a probable crash during the turn](figures/gybe-probable-crash.png)
+
+*At 6:31–6:53, speed collapses toward zero and the event is classified as a probable crash during the turn. The blue tail is the retrospective phase refinement's exit observation, not proof of a completed gybe. This example has Low confidence; GPS and speed alone cannot prove a physical fall.*
 
 ## What the development session says so far
 
@@ -42,6 +66,14 @@ Of the 32 gybe candidates, 23 have speed-retaining exits, five have probable cra
 
 The supplemental detector recovered six completed turn candidates that the earlier approach missed. Those additions are useful review targets, not proof that every added event is correct. The absence of detected tacks is also not an independent test of tack recognition.
 
+![Time spent in each activity class in the September 7 session](figures/session-breakdown.png)
+
+*The saved timeline expressed as time, rather than a count of GPS samples. Reaching accounts for 40.2 minutes; the detector labels another 9.1 minutes as surf candidates. These are the same intervals summarized in the table above.*
+
+![Counts of the five detected gybe outcomes](figures/gybe-outcomes.png)
+
+*The 32 gybe candidates split by detected outcome. The six crash-associated gybes are a subset of the 21 probable crashes across the whole session.*
+
 ## Why introduce an HSMM?
 
 A maneuver unfolds over time. A setup, turn core, and exit have an order and a duration; treating every sample as an unrelated classification throws that structure away.
@@ -60,11 +92,15 @@ There is an important limitation: emission statistics are fitted from the heuris
 
 For that reason, `--decoder hsmm` writes an additional state sequence. It does not replace the heuristic maneuver, crash, or foil-onset tables. The saved state's sample counts are also not state durations: the recording has irregular sample timing.
 
+![Saved heuristic and HSMM activity labels between 20 and 35 minutes, with recorded speed below](figures/heuristic-hsmm-timeline.png)
+
+*The saved outputs aligned in elapsed time. HSMM travel sides and setup/core/exit states are collapsed into common activity colors for this comparison; each sample label extends to the next recorded timestamp. Short unknown and recovery intervals are handled differently, and some surf boundaries move. This is a visualization of disagreement, not evidence that either row is correct.*
+
 ## What comes next
 
 The next milestone is a reviewable comparison, before adding more model complexity.
 
-First, add a synchronized timeline to the existing track report that shows the heuristic interpretation beside the HSMM states. Make disagreements easy to inspect and let a rider correct event type, boundaries, outcome, and uncertainty. Prioritize the six recovered gybes, apparent surf sections, stops labeled as crashes, and low-confidence boundaries.
+First, turn the static comparison above into a synchronized, interactive timeline in the track report that shows the heuristic interpretation beside the HSMM states. Make disagreements easy to inspect and let a rider correct event type, boundaries, outcome, and uncertainty. Prioritize the six recovered gybes, apparent surf sections, stops labeled as crashes, and low-confidence boundaries.
 
 Second, collect reviewed sessions beyond the recording used for development. Include actual tacks, interrupted turns, intentional stops, and different wind and sampling conditions. Preserve uncertain labels rather than forcing every interval into a clean category.
 
@@ -84,4 +120,4 @@ uv run python -m unittest discover -s tests -p 'test_*.py'
 
 Set `--wind` to the wind **from** direction in degrees true for your session. The example value describes the development session, not a general default to trust elsewhere.
 
-See the [project README](../README.md), [HSMM implementation](../src/wingfoil_analyzer/hsmm.py), and [next milestones](roadmap.md). The numerical example above comes from the locally retained development report; raw activity data and generated track reports are not included in the public repository. Synthetic tests check implementation behavior, not real-world recognition accuracy.
+See the [project README](../README.md), [HSMM implementation](../src/wingfoil_analyzer/hsmm.py), and [next milestones](roadmap.md). The numerical example above comes from the locally retained development report; the selected track map, clickable report, and derived figures are published with permission. The raw FIT recording remains local. Synthetic tests check implementation behavior, not real-world recognition accuracy.
