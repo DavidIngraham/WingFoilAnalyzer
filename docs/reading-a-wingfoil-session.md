@@ -16,7 +16,7 @@ This is the actual saved output from my September 7 session at the Event Site in
 
 [Explore the full clickable activity report →](https://davidingraham.github.io/WingFoilAnalyzer/examples/event-site-2026-09-07.html)
 
-The report is the saved development output, including its track and event table. Click a track segment or table row to highlight it. Its “gybe success rate” label is the detector's speed-retaining-exit fraction, not validated recognition accuracy.
+The report is the saved development output, including its track and event table. Click a track segment or table row to highlight it. The outcome counts are detector classifications, not independently verified results.
 
 ## Start with the information the recording actually contains
 
