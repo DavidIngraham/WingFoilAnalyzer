@@ -1,0 +1,37 @@
+[build-system]
+requires = ["uv_build>=0.9.0,<0.13"]
+build-backend = "uv_build"
+
+[project]
+name = "wingfoil-analyzer"
+version = "0.1.0"
+description = "Heuristic segmentation and reporting for wingfoil FIT activities"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fitdecode>=0.10.0",
+    "jinja2>=3.1",
+    "matplotlib>=3.7",
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+
+[project.scripts]
+wingfoil-analyze = "wingfoil_analyzer.cli:main"
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "standard"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["src"]
+extend-exclude = ["dist", "results", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B905", "E501"]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.11"]

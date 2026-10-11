@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wingfoil activity overview</title>
+<style>
+:root { --ink:#182a38; --muted:#61717e; --line:#dbe3e8; --panel:#f5f8fa; --accent:#119c83; }
+* { box-sizing:border-box; }
+body { margin:0; background:#edf2f3; color:var(--ink); font:14px/1.45 system-ui, sans-serif; }
+main { max-width:1500px; margin:0 auto; padding:24px; }
+h1,h2,h3,p { margin-top:0; }
+h1 { margin-bottom:4px; letter-spacing:-.02em; }
+h2 { font-size:18px; margin-bottom:12px; }
+.subtitle { color:var(--muted); margin-bottom:20px; }
+.summary { display:grid; grid-template-columns:repeat(5,minmax(120px,1fr)); gap:10px; margin-bottom:16px; }
+.stat, .panel { background:white; border:1px solid var(--line); border-radius:10px; }
+.stat { padding:13px 15px; }
+.stat strong { display:block; font-size:22px; }
+.stat span { color:var(--muted); font-size:12px; }
+.panel { padding:16px; margin-bottom:16px; }
+.overview { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr); gap:16px; }
+.map-wrap { background:#f7fafb; border:1px solid var(--line); border-radius:8px; padding:8px; }
+svg.overview-map { display:block; width:100%; height:auto; min-height:360px; }
+.segment-path { fill:none; stroke-width:2; opacity:.8; cursor:pointer; transition:opacity .12s,stroke-width .12s; }
+.segment-path.active { opacity:1; stroke-width:5; }
+.event-marker { cursor:pointer; stroke:#fff; stroke-width:1.5; }
+.ride-list { display:grid; gap:8px; max-height:520px; overflow:auto; }
+.ride-row { display:grid; grid-template-columns:74px 1fr; gap:10px; padding:9px; border:1px solid var(--line); border-radius:8px; cursor:pointer; background:#fff; }
+.ride-row:hover, .ride-row.active { border-color:var(--accent); background:#f0faf7; }
+.mini-map { width:74px; height:48px; background:#f3f7f8; border-radius:5px; }
+.mini-map polyline { fill:none; stroke-width:3; }
+.ride-title { font-weight:700; }
+.ride-meta, .ride-stats { color:var(--muted); font-size:12px; }
+.ride-stats { display:flex; flex-wrap:wrap; gap:5px 12px; margin-top:4px; }
+.timeline { position:relative; height:82px; background:#f7fafb; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+.timeline-segment { position:absolute; top:16px; height:42px; min-width:1px; padding:0; border:0; border-right:1px solid rgba(255,255,255,.45); appearance:none; cursor:pointer; opacity:.82; }
+.timeline-segment:hover, .timeline-segment.active { opacity:1; outline:2px solid var(--ink); z-index:2; }
+.timeline-label { position:absolute; bottom:6px; color:var(--muted); font-size:11px; }
+.segment-table { width:100%; border-collapse:collapse; font-size:12px; }
+.segment-table th { position:sticky; top:0; background:#eef3f5; text-align:left; }
+.segment-table td, .segment-table th { padding:8px 6px; border-bottom:1px solid var(--line); }
+.segment-table tr { cursor:pointer; }
+.segment-table tr:hover, .segment-table tr.active { background:#eaf7f3; }
+.badge { display:inline-block; padding:2px 6px; border-radius:999px; color:#fff; font-size:11px; }
+@media (max-width:900px) { main { padding:12px; } .summary { grid-template-columns:repeat(2,1fr); } .overview { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Wingfoil activity overview</h1>
+  <p class="subtitle">{{ summary.elapsed_text }} elapsed · {{ summary.ride_count }} rides · hover the timeline or click a ride to focus the overview map</p>
+
+  <section class="summary">
+    <div class="stat"><strong>{{ summary.elapsed_text }}</strong><span>elapsed</span></div>
+    <div class="stat"><strong>{{ summary.ride_count }}</strong><span>rides</span></div>
+    <div class="stat"><strong>{{ summary.gybe_success_rate }}</strong><span>gybe success rate</span></div>
+    <div class="stat"><strong>{{ summary.crash_count }}</strong><span>probable crashes</span></div>
+    <div class="stat"><strong>{{ summary.foil_count }}</strong><span>onto-foil events</span></div>
+  </section>
+
+  <section class="panel">
+    <h2>Overview map</h2>
+    <div class="map-wrap">
+      <svg id="overview-map" class="overview-map" viewBox="0 0 {{ map_width }} {{ map_height }}" role="img" aria-label="Interactive activity overview map">
+        {% for segment in segments %}
+        <polyline id="segment-{{ segment.id }}" class="segment-path" data-segment-id="{{ segment.id }}" points="{{ segment.points }}" stroke="{{ segment.color }}" onmouseenter="highlightSegment({{ segment.id }})" onmouseleave="restoreSelection()" onclick="selectSegment({{ segment.id }})"><title>{{ segment.type }} {{ segment.id }} · {{ segment.start_clock }}–{{ segment.end_clock }}</title></polyline>
+        {% endfor %}
+        {% for event in crashes %}
+        <circle class="event-marker crash-marker" cx="{{ event.x }}" cy="{{ event.y }}" r="4" fill="#df3434" onclick="selectEvent('{{ event.id }}')"><title>{{ event.id }} probable crash · {{ event.time_text }}</title></circle>
+        {% endfor %}
+        {% for event in foil_events %}
+        <circle class="event-marker foil-marker" cx="{{ event.x }}" cy="{{ event.y }}" r="4" fill="#168a5a" onclick="selectEvent('{{ event.id }}')"><title>{{ event.id }} onto foil · {{ event.time_text }}</title></circle>
+        {% endfor %}
+      </svg>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Timeline</h2>
+    <div class="timeline" aria-label="Activity timeline">
+      {% for segment in segments %}
+      <button class="timeline-segment" data-segment-id="{{ segment.id }}" style="left:{{ segment.left_pct }}%;width:{{ segment.width_pct }}%;background:{{ segment.color }}" title="{{ segment.type }} {{ segment.id }} · {{ segment.start_clock }}–{{ segment.end_clock }}" onmouseenter="highlightSegment({{ segment.id }})" onmouseleave="restoreSelection()" onclick="selectSegment({{ segment.id }})"></button>
+      {% endfor %}
+      <span class="timeline-label" style="left:8px">00:00:00</span>
+      <span class="timeline-label" style="right:8px">{{ summary.elapsed_text }}</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Per-ride stats</h2>
+    <div class="ride-list">
+      {% for ride in rides %}
+      <article class="ride-row" data-segment-id="{{ ride.id }}" onclick="selectRide({{ ride.id }})" onmouseenter="highlightSegment({{ ride.id }})" onmouseleave="restoreSelection()">
+        <svg class="mini-map" viewBox="0 0 100 60" aria-label="Map icon for {{ ride.label }}"><polyline points="{{ ride.mini_points }}" stroke="{{ ride.color }}"></polyline></svg>
+        <div>
+          <div class="ride-title"><span class="badge" style="background:{{ ride.color }}">{{ ride.type }}</span> {{ ride.id }}</div>
+          <div class="ride-meta">{{ ride.start_clock }}–{{ ride.end_clock }} · {{ ride.duration_text }} · {{ ride.outcome or "No outcome" }}</div>
+          <div class="ride-stats">
+            {% if ride.direction %}<span>{{ ride.direction }}</span>{% endif %}
+            {% if ride.core_duration_s is not none %}<span>core {{ "%.1f"|format(ride.core_duration_s) }}s</span>{% endif %}
+            {% if ride.core_radius_m is not none %}<span>core radius {{ "%.1f"|format(ride.core_radius_m) }}m</span>{% endif %}
+            {% if ride.core_continuity is not none %}<span>core continuity {{ ride.core_continuity }}</span>{% endif %}
+            {% if ride.path_length_m is not none %}<span>path {{ "%.1f"|format(ride.path_length_m) }}m</span>{% endif %}
+            {% if ride.confidence %}<span>{{ ride.confidence }}</span>{% endif %}
+          </div>
+        </div>
+      </article>
+      {% else %}<p>No maneuver or surf rides detected.</p>{% endfor %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>All timeline segments</h2>
+    <div style="max-height:520px;overflow:auto">
+      <table class="segment-table">
+        <thead><tr><th>ID</th><th>Type</th><th>Start</th><th>End</th><th>Duration</th><th>Outcome</th><th>Confidence</th></tr></thead>
+        <tbody>
+        {% for segment in segments %}
+        <tr data-segment-id="{{ segment.id }}" onclick="selectSegment({{ segment.id }})" onmouseenter="highlightSegment({{ segment.id }})" onmouseleave="restoreSelection()"><td>{{ segment.id }}</td><td><span class="badge" style="background:{{ segment.color }}">{{ segment.type }}</span></td><td>{{ segment.start_clock }}</td><td>{{ segment.end_clock }}</td><td>{{ segment.duration_text }}</td><td>{{ segment.outcome or "—" }}</td><td>{{ segment.confidence or "—" }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+let selectedSegment = null;
+function allFor(id) { return document.querySelectorAll('[data-segment-id="' + id + '"]'); }
+function clearActive() {
+  document.querySelectorAll('.segment-path,.timeline-segment,.ride-row,.segment-table tr').forEach(el => el.classList.remove('active'));
+}
+function applyHighlight(id) {
+  clearActive();
+  document.querySelectorAll('.segment-path').forEach(el => el.style.opacity = '.12');
+  document.querySelectorAll('.segment-path[data-segment-id="' + id + '"]').forEach(el => { el.style.opacity = '1'; el.classList.add('active'); });
+  allFor(id).forEach(el => el.classList.add('active'));
+}
+function highlightSegment(id) { applyHighlight(id); }
+function restoreSelection() {
+  if (selectedSegment === null) {
+    clearActive();
+    document.querySelectorAll('.segment-path').forEach(el => el.style.opacity = '.8');
+  } else applyHighlight(selectedSegment);
+}
+function selectSegment(id) { selectedSegment = id; applyHighlight(id); }
+function selectRide(id) { selectedSegment = id; applyHighlight(id); document.querySelector('.ride-row[data-segment-id="' + id + '"]').scrollIntoView({block:'nearest'}); }
+function selectEvent(id) { const marker = document.getElementById('segment-' + id); if (marker) selectSegment(id); }
+</script>
+</body>
+</html>
